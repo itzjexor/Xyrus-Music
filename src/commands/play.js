@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { ActionRowBuilder, ButtonBuilder, EmbedBuilder, ButtonStyle } = require('discord.js');
-const ytSearch = require('yt-search');
+const { SoundCloudPlugin } = require('@distube/soundcloud');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -18,10 +18,10 @@ module.exports = {
     .addSubcommand(subcommand =>
       subcommand
         .setName('playlist')
-        .setDescription('Play a playlist from YouTube.')
+        .setDescription('Play a playlist.')
         .addStringOption(option =>
           option.setName('url')
-            .setDescription('The URL of the YouTube playlist')
+            .setDescription('The URL of the playlist')
             .setRequired(true)))
     .addSubcommand(subcommand =>
       subcommand
@@ -55,26 +55,27 @@ module.exports = {
               .setDescription('Playlist Not supported in Free Tier Bot.')
           ],
         });
-      }  else if (subcommand === 'search') {
-        const searchResult = await ytSearch(query);
+      } else if (subcommand === 'search') {
+        const scPlugin = interaction.client.playerManager.distube.plugins.find(p => p instanceof SoundCloudPlugin);
+        const searchResult = await scPlugin.search(query, 'track', 5);
 
-        if (!searchResult || !searchResult.videos.length) {
+        if (!searchResult || !searchResult.length) {
           return interaction.followUp({
             embeds: [new EmbedBuilder().setColor('#FFFF00').setDescription('🚫 No songs found for your query.')],
           });
         }
 
-        const videos = searchResult.videos.slice(0, 5);
+        const videos = searchResult.slice(0, 5);
 
         const embed = new EmbedBuilder()
-          .setTitle('Search Results')
+          .setTitle('Search Results (SoundCloud)')
           .setDescription('Select a song to play:')
-          .setColor('#ff0000');
+          .setColor('#ff5500');
         
         videos.forEach((video, index) => {
           embed.addFields({
-            name: `${index + 1}. ${video.title}`,
-            value: `Duration: ${video.timestamp} | ${video.author.name}`,
+            name: `${index + 1}. ${video.name}`,
+            value: `Duration: ${video.formattedDuration || 'Live'} | ${video.uploader?.name || 'Unknown'}`,
             inline: false,
           });
         });
@@ -97,13 +98,11 @@ module.exports = {
 
         collector.on('collect', async i => {
           try {
-
             const disabledRow = new ActionRowBuilder().addComponents(
               row1.components.map(button => 
                 ButtonBuilder.from(button).setDisabled(true)
               )
             );
-            
             
             await i.update({ components: [disabledRow] });
             
@@ -111,12 +110,11 @@ module.exports = {
             const selectedVideo = videos[parseInt(index)];
 
             if (selectedVideo) {
-    
               const queueMessage = await interaction.followUp({
                 embeds: [
                   new EmbedBuilder()
                     .setColor('#FF00FF')
-                    .setDescription(`🎶 Queuing: **${selectedVideo.title}**...`),
+                    .setDescription(`🎶 Queuing: **${selectedVideo.name}**...`),
                 ],
               });
               
@@ -128,7 +126,6 @@ module.exports = {
                 });
               } catch (playError) {
                 if (playError.errorCode === 'VOICE_CONNECT_FAILED') {
-               
                   console.log('Voice connect failed, attempting to rejoin...');
                   await new Promise(resolve => setTimeout(resolve, 2000)); 
                   await interaction.client.playerManager.distube.voices.join(channel);
@@ -143,12 +140,11 @@ module.exports = {
                 }
               }
               
-            
               await queueMessage.edit({
                 embeds: [
                   new EmbedBuilder()
                     .setColor('#00FF00')
-                    .setDescription(`✅ Successfully queued: **${selectedVideo.title}**`),
+                    .setDescription(`✅ Successfully queued: **${selectedVideo.name}**`),
                 ],
               });
             } else {
@@ -168,7 +164,6 @@ module.exports = {
 
         collector.on('end', async collected => {
           if (!collected.size) {
-           
             const timeoutRow = new ActionRowBuilder().addComponents(
               row1.components.map(button => 
                 ButtonBuilder.from(button).setDisabled(true)
@@ -187,7 +182,6 @@ module.exports = {
         });
 
       } else if (subcommand === 'spotify') {
-
         return interaction.editReply({
           embeds: [
             new EmbedBuilder()
