@@ -9,7 +9,7 @@
   "dependencies": {
     "@discordjs/builders": "^1.9.0",
     "@discordjs/voice": "^0.19.0",
-    "@distube/yt-dlp": "^2.0.1",
+    "@distube/yt-dlp": "latest",
     "@distube/ytdl-core": "latest",
     "@noble/ciphers": "^1.0.0",
     "@snazzah/davey": "^0.1.3",
