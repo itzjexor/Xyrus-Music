@@ -2,11 +2,14 @@ const { DisTube } = require('distube');
 const PlayerQueue = require('./PlayerQueue');
 const PlayerErrorHandler = require('./PlayerErrorHandler');
 const PlayerEvents = require('./PlayerEvents');
+const { SoundCloudPlugin } = require('@distube/soundcloud');
+const { SpotifyPlugin } = require('@distube/spotify');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const fs = require("fs");
 const { EmbedBuilder } = require('discord.js');
 require('dotenv').config();
 const path = require('path');
+
 class PlayerManager {
     constructor(client, distubeOptions) {
         this.client = client;
@@ -16,9 +19,10 @@ class PlayerManager {
         this.distube = new DisTube(client, {
           ...distubeOptions,
           plugins: [
+            new SoundCloudPlugin(),
+            new SpotifyPlugin(),
             new YtDlpPlugin({
-              update: false, 
-              cookies: path.join(__dirname, '../config/cookies.txt'), 
+              update: false
             }),
           ],
         });
@@ -38,7 +42,6 @@ class PlayerManager {
     this.distube.on('error', (error) => this.errorHandler.handleError(error));
     this.distube.on('disconnect', (queue) => this.handleDisconnect(queue));
     this.distube.on('empty', (queue) => this.handleEmpty(queue));
-    //this.distube.on('debug', (message) => console.debug(`DisTube Debug: ${message}`));
   }
   
   async handlePlaySong(queue, song) {
@@ -80,7 +83,6 @@ class PlayerManager {
         }, this.messageDeleteTimeout);
       }
     } catch (error) {
-      // Silently handle errors without logging to chat
       console.error('Error in handlePlaySong:', error);
     }
   }
@@ -110,13 +112,11 @@ class PlayerManager {
         sentMessage.delete().catch(() => {}); 
       }, this.messageDeleteTimeout);
     } catch (error) {
-    
       console.error('Error in handleAddSong:', error);
     }
   }
 
   handleAddList(queue, playlist) {
-    // No need to log or send message for playlists
     return;
   }
 
@@ -143,10 +143,7 @@ class PlayerManager {
 
   async playSong(channel, song, options) {
     try {
-
       await this.distube.voices.join(channel);
-      
-  
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       const queue = await this.distube.play(channel, song, options);
@@ -154,7 +151,6 @@ class PlayerManager {
       return queue;
     } catch (error) {
       if (error.errorCode === 'VOICE_CONNECT_FAILED') {
-      
         try {
           await new Promise(resolve => setTimeout(resolve, 2000));
           await this.distube.voices.join(channel);
